@@ -34,11 +34,17 @@ async function sync() {
     }
   }));
   const resolved = matches.filter((match) => match.tidal);
-  const toAdd = resolved.filter((match) => !present.has(match.tidal!.id));
-  for (let index = 0; index < toAdd.length; index += 50) await addTracks(playlistId, country, toAdd.slice(index, index + 50).map((match) => match.tidal!.id));
+  // Two RP entries can resolve to the same TIDAL track; add each only once.
+  const toAdd = [...new Map(resolved.filter((match) => !present.has(match.tidal!.id)).map((match) => [match.tidal!.id, match])).values()];
+  const addedLines: string[] = [];
+  for (let index = 0; index < toAdd.length; index += 50) {
+    const batch = toAdd.slice(index, index + 50);
+    await addTracks(playlistId, country, batch.map((match) => match.tidal!.id));
+    for (const match of batch) addedLines.push(`  ✓ ${match.track.title} - ${match.track.artist}`);
+  }
   const report = {
     generatedAt: new Date().toISOString(), total: tracks.length,
-    added: toAdd.map((match) => ({ source: match.track, tidalId: match.tidal!.id, score: match.score })),
+    added: toAdd.map((match) => ({ source: match.track, tidalId: match.tidal!.id, tidalTitle: match.tidal!.attributes?.title, score: match.score })),
     alreadyPresent: resolved.filter((match) => present.has(match.tidal!.id)).map((match) => match.track),
     notFound: matches.filter((match) => !match.tidal).map((match) => ({ source: match.track, score: match.score, reason: match.reason })),
     errors,
@@ -47,7 +53,18 @@ async function sync() {
   const reportFile = `reports/sync-${new Date().toISOString().replace(/[:.]/g, '-')}.json`;
   await writeFile(reportFile, `${JSON.stringify(report, null, 2)}\n`);
   await markFavoritesSynced(errors.map((entry) => entry.source));
-  console.log(`Added ${toAdd.length}; already present ${report.alreadyPresent.length}; review ${report.notFound.length}; errors ${errors.length} → ${reportFile}`);
+  if (addedLines.length) console.log(`\nAdded to TIDAL playlist (${addedLines.length}):\n${addedLines.join('\n')}`);
+  if (report.alreadyPresent.length) console.log(`\nAlready in playlist (${report.alreadyPresent.length}), skipped.`);
+  if (report.notFound.length) {
+    console.log(`\nNot added, check by hand (${report.notFound.length}):`);
+    for (const item of report.notFound) console.log(`  ? ${item.source.title} - ${item.source.artist}  [${item.reason}]`);
+  }
+  if (errors.length) {
+    console.log(`\nErrors, will retry next run (${errors.length}):`);
+    for (const item of errors) console.log(`  ✗ ${item.source.title} - ${item.source.artist}`);
+  }
+  if (!tracks.length) console.log('Nothing new to sync.');
+  console.log(`\nSummary: added ${toAdd.length}, already present ${report.alreadyPresent.length}, to review ${report.notFound.length}, errors ${errors.length}. Full report: ${reportFile}`);
 }
 
 async function download() {
