@@ -80,7 +80,9 @@ export async function extractNewFavorites(sourceFile: string, minRating: number)
 
 export async function readPendingFavorites(): Promise<RpTrack[]> { return readTrackList(pendingTracksFile); }
 
-export async function markFavoritesSynced(): Promise<void> {
-  const current = await readTrackList(currentFavoritesFile);
+/** Records the current favourites as synced, except `retry` tracks, which stay pending for the next run. */
+export async function markFavoritesSynced(retry: RpTrack[] = []): Promise<void> {
+  const skip = new Set(retry.map(id));
+  const current = (await readTrackList(currentFavoritesFile)).filter((track) => !skip.has(id(track)));
   await writeFile(syncedFavoritesFile, `${JSON.stringify(current, null, 2)}\n`);
 }

@@ -17,9 +17,22 @@ function apiError(error: unknown, operation: string): Error {
   return error instanceof Error ? error : new Error(`${operation}: ${String(error)}`);
 }
 
-export async function tidalGet(path: string) {
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+/** GET with query params encoded by axios; retries politely on HTTP 429. */
+export async function tidalGet(path: string, params?: Record<string, string>) {
   try {
-    const response = await axios.get<unknown>(path, { baseURL: api, headers: await headers() });
+    let response;
+    for (let attempt = 0; ; attempt++) {
+      try {
+        response = await axios.get<unknown>(path, { baseURL: api, headers: await headers(), params });
+        break;
+      } catch (error) {
+        if (!(error instanceof AxiosError) || error.response?.status !== 429 || attempt >= 5) throw error;
+        const retryAfter = Number(error.response.headers['retry-after']);
+        await sleep(Number.isFinite(retryAfter) && retryAfter > 0 ? retryAfter * 1000 : 2000 * 2 ** attempt);
+      }
+    }
     const parsed = tidalDocumentSchema.safeParse(response.data);
     if (!parsed.success) throw new Error(`TIDAL response contract violation: ${zodMessage(parsed.error)}`);
     return parsed.data;
