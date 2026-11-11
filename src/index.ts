@@ -5,6 +5,7 @@ import { addTracks } from './tidal/client.js';
 import { existingPlaylistTrackIds, findTidalTrack, type Match } from './tidal/match.js';
 import type { RpTrack } from './contracts.js';
 import { login } from './tidal/auth.js';
+import { downloadFavorites } from './radio-paradise/download.js';
 
 async function extract(input?: string) {
   const result = await extractNewFavorites(input ?? env.RP_FAVORITES_FILE, env.RP_MIN_RATING);
@@ -49,8 +50,15 @@ async function sync() {
   console.log(`Added ${toAdd.length}; already present ${report.alreadyPresent.length}; review ${report.notFound.length}; errors ${errors.length} → ${reportFile}`);
 }
 
+async function download() {
+  const count = await downloadFavorites(requireEnv('RP_USER_ID'), env.RP_FAVORITES_FILE);
+  console.log(`Downloaded ${count} rated songs from Radio Paradise → ${env.RP_FAVORITES_FILE}`);
+}
+
 const [command, input] = process.argv.slice(2);
-if (command === 'extract') await extract(input);
+if (command === 'download') await download();
+else if (command === 'extract') await extract(input);
 else if (command === 'sync') await sync();
+else if (command === 'sync-all') { await download(); await extract(); await sync(); }
 else if (command === 'tidal:login') await login();
-else console.error('Usage: npm run extract [-- path/to/favorites.txt] | npm run sync');
+else console.error('Usage: npm run sync-all | download | extract [-- file] | sync | tidal:login');

@@ -3,6 +3,8 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "sync-all": "tsx src/index.ts sync-all",
+    "download": "tsx src/index.ts download",
     "extract": "tsx src/index.ts extract",
     "sync": "tsx src/index.ts sync",
     "tidal:login": "tsx src/index.ts tidal:login",
@@ -16,7 +18,6 @@
   },
   "devDependencies": {
     "@types/node": "^22.15.30",
-    "playwright": "^1.65.0",
     "tsx": "^4.19.4",
     "typescript": "^5.8.3"
   }
