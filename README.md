@@ -1,98 +1,98 @@
 # Radio Paradise → TIDAL
 
-Переносит песни, которые вы оценили на [Radio Paradise](https://radioparadise.com),
-в ваш плейлист TIDAL. Одна команда скачивает оценки, отбирает новые и добавляет их
-в плейлист.
+Copies the songs you have rated on [Radio Paradise](https://radioparadise.com)
+into one of your TIDAL playlists. One command downloads your ratings, picks out
+the new ones, and adds them to the playlist.
 
 ```bash
 npm run sync-all
 ```
 
-## Что делает
+## What it does
 
-1. **Скачивает** все ваши оценки с Radio Paradise (CSV: название, исполнитель, оценка).
-   Это тот же файл, что отдаёт кнопка ☁︎ Download в профиле. Вход не нужен,
-   достаточно номера профиля.
-2. **Отбирает** песни с оценкой не ниже `RP_MIN_RATING` (по умолчанию 7), которые
-   ещё не переносились.
-3. **Ищет** каждую песню в TIDAL и **добавляет** найденные в плейлист.
+1. **Downloads** all your Radio Paradise ratings as a CSV with title, artist and
+   rating. This is the same file you get from the ☁︎ Download button on your
+   profile. No login is needed, only your profile number.
+2. **Selects** songs rated at least `RP_MIN_RATING` (default 7) that have not
+   been synced yet.
+3. **Searches** TIDAL for each song and **adds** the matches to your playlist.
 
-Важно:
-- **Ничего не удаляет** из плейлиста и не добавляет дубликаты.
-- **Не добавляет сомнительные совпадения.** Если TIDAL не нашёл песню или нашёл
-  несколько разных похожих (каверы, другая запись классики), она попадает в отчёт
-  `reports/sync-*.json` в раздел `notFound`. Такие песни можно добавить вручную.
-- Запоминает, что уже перенесено, поэтому повторный запуск добавит только новые оценки.
+Good to know:
+- **It never removes anything** from the playlist and never adds duplicates.
+- **It skips uncertain matches.** A song TIDAL can't find, or one with several
+  different close candidates (covers, other recordings of a classical piece),
+  goes into the `notFound` section of `reports/sync-*.json` so you can add it
+  by hand.
+- It remembers what it has synced, so later runs only add new ratings.
 
-## Настройка (один раз, ~5 минут)
+## Setup (once, about 5 minutes)
 
-Нужен Node.js 20+.
+Requires Node.js 20 or newer.
 
 ```bash
 npm install
 cp .env.example .env
 ```
 
-Заполните `.env`:
+Fill in `.env`:
 
-| Параметр | Где взять |
+| Setting | Where to find it |
 |---|---|
-| `RP_USER_ID` | Откройте свой профиль на radioparadise.com, число в адресе: `…/account/profile/`**`1234567890`** |
-| `RP_MIN_RATING` | Минимальная оценка для переноса, от 1 до 10 |
-| `TIDAL_CLIENT_ID` | См. ниже |
-| `TIDAL_PLAYLIST_ID` | Откройте плейлист на tidal.com, часть адреса после `/playlist/`. Плейлист нужно создать заранее |
-| `TIDAL_COUNTRY_CODE` | Страна вашего аккаунта TIDAL, например `PL`, `DE`, `US` |
+| `RP_USER_ID` | Open your profile on radioparadise.com. It's the number in the URL: `…/account/profile/`**`1234567890`** |
+| `RP_MIN_RATING` | Lowest rating to sync, from 1 to 10 |
+| `TIDAL_CLIENT_ID` | See below |
+| `TIDAL_PLAYLIST_ID` | Open the playlist on tidal.com and copy the part of the URL after `/playlist/`. Create the playlist first |
+| `TIDAL_COUNTRY_CODE` | Your TIDAL account's country, e.g. `PL`, `DE`, `US` |
 
-### Приложение TIDAL (для `TIDAL_CLIENT_ID`)
+### TIDAL app (for `TIDAL_CLIENT_ID`)
 
-TIDAL разрешает менять плейлисты только зарегистрированным приложениям. Регистрация
-бесплатная:
+TIDAL only lets registered apps change playlists. Registering is free:
 
-1. Войдите на [developer.tidal.com](https://developer.tidal.com/) обычным аккаунтом
-   TIDAL и создайте приложение (название любое).
-2. На вкладке **Settings → Edit** заполните:
+1. Sign in at [developer.tidal.com](https://developer.tidal.com/) with your
+   normal TIDAL account and create an app. Any name works.
+2. Under **Settings → Edit**, set:
    - **Redirect URIs**: `http://127.0.0.1:8787/callback`
    - **Allowed scopes**: `playlists.read`, `playlists.write`, `search.read`
-3. На вкладке **Overview** скопируйте **Client ID** в `.env`. Client Secret не нужен.
+3. Under **Overview**, copy the **Client ID** into `.env`. You don't need the
+   Client Secret.
 
-### Вход в TIDAL
+### Sign in to TIDAL
 
 ```bash
 npm run tidal:login
 ```
 
-Команда выведет ссылку. Откройте её, войдите в TIDAL и разрешите доступ. Должно
-появиться сообщение «TIDAL connected». Вход нужен один раз, дальше доступ
-продлевается автоматически.
+This prints a link. Open it, sign in to TIDAL and allow access. You should see
+"TIDAL connected". You only do this once; access renews automatically after that.
 
-## Команды
+## Commands
 
-| Команда | Что делает |
+| Command | What it does |
 |---|---|
-| `npm run sync-all` | Всё сразу: download → extract → sync |
-| `npm run download` | Только скачать оценки с Radio Paradise |
-| `npm run extract` | Только отобрать новые песни (из скачанного файла) |
-| `npm run sync` | Только найти отобранные песни в TIDAL и добавить их |
-| `npm run tidal:login` | Войти в TIDAL заново |
+| `npm run sync-all` | Everything: download → extract → sync |
+| `npm run download` | Only download your ratings from Radio Paradise |
+| `npm run extract` | Only pick out new songs from the downloaded file |
+| `npm run sync` | Only search TIDAL for the picked songs and add them |
+| `npm run tidal:login` | Sign in to TIDAL again |
 
-## Где что лежит
+## Where things are stored
 
-Всё локальное хранится в `.data/` и `reports/`. Обе папки в `.gitignore`.
+Everything local lives in `.data/` and `reports/`. Both are in `.gitignore`.
 
-- `.data/tidal-token.json`: ваш доступ к TIDAL. **Никому его не передавайте.**
-  Чтобы отозвать доступ, удалите приложение на developer.tidal.com.
-- `.data/rp_favorites.csv`: последняя выгрузка с Radio Paradise.
-- `.data/rp-favorites-snapshot.json`: что уже перенесено. Если удалить этот файл,
-  скрипт снова пройдёт по всем песням (дубликатов не будет).
-- `reports/sync-*.json`: отчёт каждого запуска: `added`, `alreadyPresent`,
-  `notFound`, `errors`.
+- `.data/tidal-token.json`: your TIDAL access. **Don't share it.** To revoke it,
+  delete the app on developer.tidal.com.
+- `.data/rp_favorites.csv`: the latest Radio Paradise download.
+- `.data/rp-favorites-snapshot.json`: what has already been synced. If you
+  delete it, the next run checks every song again. It still won't add duplicates.
+- `reports/sync-*.json`: a report for each run, with `added`, `alreadyPresent`,
+  `notFound` and `errors`.
 
-## Если что-то пошло не так
+## Troubleshooting
 
-- **«Something went wrong» на странице входа TIDAL**: в настройках приложения
-  не заполнены Redirect URI или scopes, либо адрес не совпадает с `.env` символ в символ.
-- **`Missing RP_USER_ID` / `Missing TIDAL_…`**: не заполнен параметр в `.env`.
-- **`Unexpected RP download`**: Radio Paradise изменил формат выгрузки. Скрипт
-  остановился и ничего не добавил.
-- **Песни в `errors`** (например, сбой сети) не теряются: они повторятся при
-  следующем запуске.
+- **"Something went wrong" on the TIDAL sign-in page**: the app's Redirect URI or
+  scopes are missing, or the Redirect URI doesn't exactly match the one in `.env`.
+- **`Missing RP_USER_ID` / `Missing TIDAL_…`**: that setting is empty in `.env`.
+- **`Unexpected RP download`**: Radio Paradise changed its export format. The
+  script stopped without adding anything.
+- **Songs listed under `errors`** (a network failure, for example) aren't lost.
+  They're retried on the next run.
