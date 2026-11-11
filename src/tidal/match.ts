@@ -1,4 +1,4 @@
-import type { RpTrack, TidalResource } from '../contracts.js';
+import { playlistItemsResponseSchema, searchResponseSchema, type RpTrack, type TidalResource } from '../contracts.js';
 import { clean, similarity } from '../shared/text.js';
 import { tidalGet } from './client.js';
 
@@ -7,10 +7,9 @@ export type Match = { track: RpTrack; tidal?: TidalResource; score: number; reas
 export async function findTidalTrack(track: RpTrack, country: string): Promise<Match> {
   const result = await tidalGet('/searchResults', {
     'filter[query]': `${track.artist} ${track.title}`, countryCode: country, include: 'tracks,tracks.artists',
-  });
-  const searchResult = [result.data].flat()[0] as { relationships?: { tracks?: { data?: { id: string }[] } } } | undefined;
+  }, searchResponseSchema);
   // TIDAL's own relevance order; `included` is not guaranteed to follow it.
-  const relevance = new Map((searchResult?.relationships?.tracks?.data ?? []).map((ref, index) => [ref.id, index]));
+  const relevance = new Map(result.data[0].relationships.tracks.data.map((ref, index) => [ref.id, index]));
   const all = (result.included ?? []).filter((item): item is TidalResource => item?.type === 'tracks');
   const artists = new Map((result.included ?? []).filter((x) => x.type === 'artists').map((x) => [x.id, x.attributes?.name ?? '']));
   const candidates = [...new Map(all.map((item) => [item.id, item])).values()];
@@ -43,9 +42,9 @@ export async function existingPlaylistTrackIds(playlistId: string, country: stri
   do {
     const result = await tidalGet(`/playlists/${encodeURIComponent(playlistId)}/relationships/items`, {
       countryCode: country, include: 'items', ...(cursor ? { 'page[cursor]': cursor } : {}),
-    });
-    for (const item of [result.data ?? []].flat()) if (item.type === 'tracks') ids.add(item.id);
-    cursor = (result as { links?: { meta?: { nextCursor?: string } } }).links?.meta?.nextCursor;
+    }, playlistItemsResponseSchema);
+    for (const item of result.data) if (item.type === 'tracks') ids.add(item.id);
+    cursor = result.links?.meta?.nextCursor;
   } while (cursor);
   return ids;
 }

@@ -52,7 +52,13 @@ async function sync() {
   await mkdir('reports', { recursive: true });
   const reportFile = `reports/sync-${new Date().toISOString().replace(/[:.]/g, '-')}.json`;
   await writeFile(reportFile, `${JSON.stringify(report, null, 2)}\n`);
-  await markFavoritesSynced(errors.map((entry) => entry.source));
+  // Safety net: if almost nothing matched, TIDAL's API has probably changed. Keep
+  // every unmatched song pending instead of recording it as handled.
+  const unmatched = report.notFound.length + errors.length;
+  const suspicious = tracks.length >= 10 && unmatched / tracks.length > 0.8;
+  await markFavoritesSynced(suspicious
+    ? [...report.notFound.map((item) => item.source), ...errors.map((entry) => entry.source)]
+    : errors.map((entry) => entry.source));
   if (addedLines.length) console.log(`\nAdded to TIDAL playlist (${addedLines.length}):\n${addedLines.join('\n')}`);
   if (report.alreadyPresent.length) console.log(`\nAlready in playlist (${report.alreadyPresent.length}), skipped.`);
   if (report.notFound.length) {
@@ -64,6 +70,10 @@ async function sync() {
     for (const item of errors) console.log(`  ✗ ${item.source.title} - ${item.source.artist}`);
   }
   if (!tracks.length) console.log('Nothing new to sync.');
+  if (suspicious) {
+    console.log(`\n⚠ ${unmatched} of ${tracks.length} songs were not matched. TIDAL's API may have changed, so they were NOT marked as synced and will be retried on the next run.`);
+    process.exitCode = 1;
+  }
   console.log(`\nSummary: added ${toAdd.length}, already present ${report.alreadyPresent.length}, to review ${report.notFound.length}, errors ${errors.length}. Full report: ${reportFile}`);
 }
 
